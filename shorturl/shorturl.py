@@ -1,8 +1,26 @@
-#!/usr/bin/env python
+"""
+This file is part of rsu.
+
+rsu is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+rsu is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with rsu.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+import re
 
 class Shorturl(object):
     
     rds = None
+    regex_url = re.compile(r"3")
     start_iteration = 130892
     #max = 9223372036854775807 - start_iteration
     
@@ -12,6 +30,9 @@ class Shorturl(object):
     
         if not self.rds.get('increment'):
             self.rds.set('iteration', self.start_iteration)
+    
+    def valid_url(self, long_url):
+        pass
     
     def base62_encode(self, iteration):
         #ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
