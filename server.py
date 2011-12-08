@@ -49,9 +49,7 @@ def redirect(env, resp):
     else:
         resp(
                 '404 Not Found',
-                [
-                    ('Content-Type', 'text/plain; charset=utf-8')
-                ]
+                [('Content-Type', 'text/plain; charset=utf-8')]
             )
         
         return ['404 Not Found']
@@ -59,11 +57,20 @@ def redirect(env, resp):
 @add_route(r'^/a/generate$', 'POST')
 def generate(env, resp):
     long_url = env['args'].get('long_url')
-    short_url = su.create(long_url)
     
-    if short_url[0]:
+    if not long_url.startswith("http"):
+        long_url = "http://%s" % long_url
+    
+    if not su.valid_url(long_url) or long_url.startswith(domain):
+        resp('500 Internal Server Error', [('Content-Type', 'text/html; charset=utf-8')])
+        message = 'URL %s in not valid' % (long_url) 
+        return [message]
+    
+    success, short_url = su.create(long_url)
+    
+    if success:
         resp('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        message = 'Long URL = %s <br />Short URL = %s' % (long_url, short_url[1]) 
+        message = 'Long URL = %s <br />Short URL = %s' % (long_url, short_url) 
         return [message]
     else:
         resp('500 Internal Server Error', [('Content-Type', 'text/html; charset=utf-8'), ('X-Powered-By', 'Shorten URL 0.1')])
@@ -94,7 +101,8 @@ if __name__ == '__main__':
     config = utils.parse_raw_config(config_file)
     
     host_name = config.get('core', 'host')
-    domain = 'http://%s:%s' % (host_name, port)
+    
+    domain = 'http://%s' % host_name
     
     redis_host = config.get('redis', 'host')
     redis_port = config.get('redis', 'port')
@@ -106,7 +114,7 @@ if __name__ == '__main__':
     
     server = WSGIServer((host_name, int(port)), router.route())
     try:
-        print "running on %s %d" % (domain, os.getpid())
+        print "running on %s port port %d pid %d" % (domain, port, os.getpid())
         server.serve_forever()
     except KeyboardInterrupt:
         server.stop()
