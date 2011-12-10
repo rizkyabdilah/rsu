@@ -25,12 +25,17 @@ class Shorturl(object):
     #max = 2^64 - 1 - START_ITERATION
     ALPHABET = "9V6QHY31TwcemC8iNJd40Fog7LKSPafusAOZjhBWvqXklbrznyItG2ExUpRD5M"
     #ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    
+    # maksimal key dalam 1 bucket hashmap <not used>
+    # di redis, yang optimal 1 bucket hashmap berisi sekitar 1000
+    # <http://tumblr.com/ZElL-wBNK8Y6>
+    # MAXBUCKET = 1024
         
     def __init__(self, db_object):
         if self.db is None:
             self.db = db_object
     
-        if not self.db.get('increment'):
+        if not self.db.get('iteration'):
             self.db.set('iteration', self.START_ITERATION)
     
     def valid_url(self, long_url):
@@ -43,19 +48,19 @@ class Shorturl(object):
             rem = iteration % base
             iteration /= base
             rv = self.ALPHABET[rem] + rv
-        return rv
+        return str(rv)
     
     def base62_decode(self, value):
         iteration = len(value)
         rv = 0
         for i in range(0, iteration):
             rv += self.ALPHABET.index(value[i]) * pow(62, iteration - i - 1)
-        return rv
+        return int(rv)
     
     def generate_key(self, long_url):
-        # generate again if key already used (from inject short url)
+        # generate again if key already used (maybe from inject short_url)
         while True:
-            self.db.incr('iteration')
+            self.db.increment('iteration')
             short_url = self.base62_encode(int(self.db.get('iteration')))
             if not self.short_url_exists(short_url):
                 break
@@ -69,6 +74,9 @@ class Shorturl(object):
     def short_url_exists(self, short_url):
         return self.get(short_url) != None
     
+    def long_url_exists(self, long_url):
+        return self.db.hget('long_url', long_url) != None
+        
     def create(self, long_url):
         short_url = self.db.hget('long_url', long_url)
         
@@ -79,14 +87,22 @@ class Shorturl(object):
         return (self.set_key(long_url, short_url), short_url)
     
     def inject(self, long_url, short_url):
-        rv = (500, 'Failed')
+        rv = (False, 'Failed')
         
         if self.short_url_exists(short_url):
-            rv = (500, 'Failed, short_url already used')
-        elif self.set_key(long_url, short_url):
-            rv = (200, 'Success')
+            rv = (False, 'Failed, short_url %s already used' % short_url)
+        
+        if self.long_url_exists(long_url):
+            rv = (False, 'Failed, long_url %s already shorten, try antother long_url' % long_url)
+        
+        if self.set_key(long_url, short_url):
+            rv = (True, 'Success')
             
         return rv
     
     def get(self, short_url):
         return self.db.hget('short_url', short_url)
+
+    def get_bucket_number(iteration):
+        return iteration % self.MAXBUCKET
+    

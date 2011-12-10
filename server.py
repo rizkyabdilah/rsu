@@ -24,37 +24,70 @@ from gevent.monkey import patch_all; patch_all()
 
 from shorturl.lib import (router,
                           template,
+                          response,
                           utils)
-
+from shorturl.drivers import rsuredis
 from shorturl import shorturl
 
 router = router.Router()
 add_route = router.add_route
+
+@add_route(r'^/$', 'GET')
+def home(env, resp):
+    body = """
+    <html>
+        <head>
+            <title>MindTalk Shorturl</title>
+        </head>
+        <body>
+            <form action="/action/generate" method="post">
+                <p>
+                    <label desc="Long URL">Long URL</label>
+                    <input type="text" name="long_url" value="" />
+                </p>
+                <p>
+                    <input type="submit" value="Generate" />
+                </p>
+            </form>
+            <form action="/action/inject" method="post">
+                <p>
+                    <label desc="Long URL">Long URL</label>
+                    <input type="text" name="long_url" value="" />
+                </p>
+                <p>
+                    <label desc="Short URL">Short URL</label>
+                    <input type="text" name="short_url" value="" />
+                </p>
+                <p>
+                    <input type="submit" value="Inject" />
+                </p>
+            </form>
+        </body>
+    </html>
+    """
+    
+    return response.send_response(resp,
+                                  status='200 Ok',
+                                  body=body,
+                                  content_type='text/html; charset=utf-8')
 
 @add_route(r'^/(?P<short_url>[a-zA-Z0-9]+)$', 'GET')
 def redirect(env, resp):
     long_url = su.get(env['args'].get('short_url'))
     
     if long_url:
-        resp(
-                '301 Moved Permanently',
-                [
-                    ('Content-Type', 'text/plain; charset=utf-8'),
-                    ('Location', long_url),
-                    ('X-Powered-By', 'rsu 0.1')
-                ]
-             )
-        
-        return ['301 Moved Permanently']
+        return response.send_response(resp,
+                                      status='301 Moved Permanently',
+                                      body='301 Moved Permanently',
+                                      location=long_url,
+                                      content_type='text/plain; charset=utf-8')
     else:
-        resp(
-                '404 Not Found',
-                [('Content-Type', 'text/plain; charset=utf-8')]
-            )
-        
-        return ['404 Not Found']
+        return response.send_response(resp,
+                                      status='404 Not Found',
+                                      body='404 Not Found',
+                                      content_type='text/plain; charset=utf-8')
     
-@add_route(r'^/a/generate$', 'POST')
+@add_route(r'^/action/generate$', 'POST')
 def generate(env, resp):
     long_url = env['args'].get('long_url')
     
@@ -62,20 +95,54 @@ def generate(env, resp):
         long_url = "http://%s" % long_url
     
     if not su.valid_url(long_url) or long_url.startswith(domain):
-        resp('500 Internal Server Error', [('Content-Type', 'text/html; charset=utf-8')])
-        message = 'URL %s in not valid' % (long_url) 
-        return [message]
+        message = 'URL %s is not valid' % (long_url) 
+        return response.send_response(resp,
+                                      status='500 Internal Server Error',
+                                      body=message)
     
     success, short_url = su.create(long_url)
     
     if success:
-        resp('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        message = 'Long URL = %s <br />Short URL = %s' % (long_url, short_url) 
-        return [message]
+        message = """
+        Long URL = {long_url} <br />
+        Short URL = <a href="/{short_url}">{domain}/{short_url}</a>
+        """.format(long_url=long_url, domain=domain, short_url=short_url) 
+        return response.send_response(resp,
+                                      status='200 Ok',
+                                      body=message)
     else:
-        resp('500 Internal Server Error', [('Content-Type', 'text/html; charset=utf-8'), ('X-Powered-By', 'Shorten URL 0.1')])
-        message = 'Failed, Internal Server Error'
-        return [message]
+        return response.send_response(resp,
+                                      status='500 Internal Server Error',
+                                      body='Failed, Internal Server Error')
+
+
+@add_route(r'^/action/inject$', 'POST')
+def inject(env, resp):
+    short_url = env['args'].get('short_url')
+    long_url = env['args'].get('long_url')
+    
+    if not long_url.startswith("http"):
+        long_url = "http://%s" % long_url
+    
+    if not su.valid_url(long_url) or long_url.startswith(domain):
+        return response.send_response(resp,
+                                      status='500 Internal Server Error',
+                                      body='URL %s in not valid' % long_url)
+    
+    success, message = su.inject(long_url, short_url)
+    
+    if success:
+        message = """
+        Long URL = {long_url} <br />
+        Short URL = <a href="/{short_url}">{domain}/{short_url}</a>
+        """.format(long_url=long_url, domain=domain, short_url=short_url) 
+        return response.send_response(resp,
+                                      status='200 Ok',
+                                      body=message)
+    else:
+        return response.send_response(resp,
+                                      status='500 Internal Server Error',
+                                      body=message)
 
 
 if __name__ == '__main__':
@@ -104,13 +171,19 @@ if __name__ == '__main__':
     
     domain = 'http://%s' % host_name
     
-    redis_host = config.get('redis', 'host')
-    redis_port = config.get('redis', 'port')
-    redis_db = config.get('redis', 'db')
+    if config.get('core', 'pdb') == 'redis':
+        redis_host = config.get('redis', 'host')
+        redis_port = config.get('redis', 'port')
+        redis_db = config.get('redis', 'db')
+        db = rsuredis.ShorturlDBDriver(host=redis_host, port=int(redis_port), db=redis_db)
+    elif config.get('core', 'pdb') == 'kyoto':
+        kyoto_db = config.get('kyoto', 'filename')
+        db = rsukyoto.ShorturlDBDriver(kyoto_db)
+    else:
+        print "pdb not set"
+        sys.exit(1)
     
-    _redis_conn = redis.Redis(host=redis_host, port=int(redis_port), db=redis_db)
-    
-    su = shorturl.Shorturl(_redis_conn)
+    su = shorturl.Shorturl(db)
     
     server = WSGIServer((host_name, int(port)), router.route())
     try:
