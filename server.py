@@ -26,7 +26,7 @@ from shorturl.lib import (router,
                           template,
                           response,
                           utils)
-from shorturl.drivers import rsuredis
+from shorturl.drivers import (rsukyoto, rsuredis)
 from shorturl import shorturl
 
 router = router.Router()

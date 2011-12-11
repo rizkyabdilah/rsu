@@ -26,4 +26,4 @@ class ShorturlDBDriver(InterfaceDriver):
         return self.db.set(bucket + "::" + key, value)
         
     def hget(self, bucket, key):
-        return self.db.hget(bucket + "::" + key)
+        return self.db.get(bucket + "::" + key)
