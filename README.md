@@ -24,6 +24,7 @@ On Ubuntu Linux, you can install the packages with:
     $ sudo easy_install simplejson
 
 Also you need to install gevent package version >= 1.0a3
+
     $ wget http://gevent.googlecode.com/files/gevent-1.0xx.tar.gz
     $ tar xzf gevent-1.0xx.tar.gz
     $ cd gevent-1.0xx
