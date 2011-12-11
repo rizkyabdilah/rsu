@@ -20,7 +20,7 @@ import re
 class Shorturl(object):
     
     db = None
-    regex_url = re.compile("^(?:(?P<scheme>http|ftps?):\/\/)?(?:(?:(?P<username>[\w\.\-\+%!$&'\(\)*\+,;=]+):*(?P<password>[\w\.\-\+%!$&'\(\)*\+,;=]+))@)?(?P<host>[a-z0-9-]+(?:\.[a-z0-9-]+)*(?:\.[a-z\.]{2,6})+)(?:\:(?P<port>[0-9]+))?(?P<path>\/(?:[\w_ \/\-\.~%!\$&\'\(\)\*\+,;=:@]+)?)?(?:\?(?P<query>[\w_ \-\.~%!\$&\'\(\)\*\+,;=:@\/]*))?(?:(?P<fragment>#[\w_ \-\.~%!\$&\'\(\)\*\+,;=:@\/]*))?$")
+    regex_url = re.compile("^(?:(?P<scheme>https?|ftps?):\/\/)?(?:(?:(?P<username>[\w\.\-\+%!$&'\(\)*\+,;=]+):*(?P<password>[\w\.\-\+%!$&'\(\)*\+,;=]+))@)?(?P<host>[a-z0-9-]+(?:\.[a-z0-9-]+)*(?:\.[a-z\.]{2,6})+)(?:\:(?P<port>[0-9]+))?(?P<path>\/(?:[\w_ \/\-\.~%!\$&\'\(\)\*\+,;=:@]+)?)?(?:\?(?P<query>[\w_ \-\.~%!\$&\'\(\)\*\+,;=:@\/]*))?(?:(?P<fragment>#[\w_ \-\.~%!\$&\'\(\)\*\+,;=:@\/]*))?$", re.IGNORECASE)
     START_ITERATION = 130892
     #max = 2^64 - 1 - START_ITERATION
     ALPHABET = "9V6QHY31TwcemC8iNJd40Fog7LKSPafusAOZjhBWvqXklbrznyItG2ExUpRD5M"
